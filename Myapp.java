@@ -216,6 +216,7 @@ public class Myapp extends SipServlet {
 		protected void doMessage(SipServletRequest request) throws ServletException, IOException {
     	String aor = getSIPuri(request.getHeader("From"));
     	String toAor = getSIPuri(request.getHeader("To"));
+		String fromdomain = aor.substring(aor.indexOf("@")+1, aor.length());
 		System.out.println(aor);
 		System.out.println(toAor);
 		System.out.println(request.getContent()); //conteudo da mensagem
@@ -224,17 +225,42 @@ public class Myapp extends SipServlet {
 	//	System.out.println(aor);
 	//	System.out.println("oo");
 
-		if(toAor.equals("sip:gofind@acme.pt"))
+		if(toAor.equals("sip:gofind@a.pt"))
            {
-				                	Proxy proxy = request.getProxy();
-                	proxy.setRecordRoute(true);
-                	proxy.setSupervised(false);
-                	URI toContact = factory.createURI(request.getContent().toString());
-                	proxy.proxyTo(toContact);
-				SipServletResponse response = request.createResponse(200);
-        	response.send();// 403 (forbidden response)
+				  //  Proxy proxy = request.getProxy();
+                //	proxy.setRecordRoute(true);ffff
+                //	proxy.setSupervised(false);
+                //	URI toContact = factory.createURI(request.getContent().toString());
+                //	proxy.proxyTo(toContact);
+				SipServletRequest inviteRequest = factory.createRequest(
+					request.getApplicationSession(),
+					"INVITE",
+					aor,
+					request.getContent().toString()
+				
+				);
+				//inviteRequest.setRequestURI(factory.createSipURI(null,request.getContent().toString().trim()));
+				inviteRequest.send();
+
+        	  //  response.send();// 403 (forbidden response)
             	 // Envia a mensagem
 			}
+		else if(!fromdomain.equals("a.pt"))
+		{
+							SipServletRequest inviteRequest = factory.createRequest(
+					request.getApplicationSession(),
+					"MESSAGE",
+					toAor,
+					aor
+				
+				);
+
+				SipServletResponse response = request.createResponse(200);
+				inviteRequest.setContent((Object) "Apenas utilizadores restritos", "text&plain");
+				response.send();
+				inviteRequest.send();
+
+		}
 
 	//	String domain = aor.substring(aor.indexOf("@") + 1, aor.length()); // Obtemos o "domain" do "aor"
       //  String contact = getSIPuriPort(request.getHeader("Contact")); // Obtemos o "contact" do request
@@ -251,6 +277,8 @@ public class Myapp extends SipServlet {
 			//}
 
 			//request.createResponse(200).send();
+											SipServletResponse response = request.createResponse(200);
+        	response.send();// 403 (forbidden response)
 	}
 
 	
