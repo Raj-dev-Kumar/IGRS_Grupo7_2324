@@ -12,6 +12,8 @@ import javax.servlet.sip.SipServletRequest;
 import javax.servlet.sip.SipServletResponse;
 import javax.servlet.ServletException;
 import javax.servlet.sip.URI;
+import javax.servlet.sip.SipURI;
+import javax.servlet.sip.Address;
 import javax.servlet.sip.Proxy;
 import javax.servlet.sip.SipFactory;
 import javax.servlet.sip.SipSessionsUtil;
@@ -47,16 +49,16 @@ public class Myapp extends SipServlet {
 	protected void doRegister(SipServletRequest request) throws ServletException,
 			IOException {
 		
-		String to = request.getHeader("To"); // Obtemos o "To" do request
-    	String aor = getSIPuri(request.getHeader("To")); // Obtemos o "aor" do request
+		String to = request.getHeader("To"); 
+    	String aor = getSIPuri(request.getHeader("To")); 
 
-		int expires = Integer.parseInt(getPortExpires(request.getHeader("Contact"))); // Tranformamos o valor de expires que está em string para int
+		int expires = Integer.parseInt(getPortExpires(request.getHeader("Contact")));
 
-		if (expires != 0) { // Caso o valores "expires" do request seja diferente de 0 (REGISTER)
- 			doRegistration(request, to, aor); // Efetua o registo
+		if (expires != 0) { 
+ 			doRegistration(request, to, aor);
 
-		} else { // Caso o valores "expires" do request seja igual a 0 (DEREGISTER)
-			doDeregistration(request, aor); // Efetua o deregisto
+		} else { 
+			doDeregistration(request, aor); 
 		}
 	}
 
@@ -67,23 +69,22 @@ public class Myapp extends SipServlet {
 		* @param aor From the SIP message received
     	*/
 	private void doRegistration(SipServletRequest request, String to, String aor) throws ServletException, IOException {
-    	SipServletResponse response; // Cria a resposta
+    	SipServletResponse respons
 
-		String domain = aor.substring(aor.indexOf("@") + 1, aor.length()); // Obtemos o "domain" do "aor"
-        String contact = getSIPuriPort(request.getHeader("Contact")); // Obtemos o "contact" do request
+		String domain = aor.substring(aor.indexOf("@") + 1, aor.length()); 
+        String contact = getSIPuriPort(request.getHeader("Contact")); 
 
-			if ("a.pt".equals(domain)) { // O dominio corresponde ao pretendido
-				RegistrarDB.put(aor, contact); // Adcionamos à BD
-				setStatus(aor, "AVAILABLE"); // Colocamos o está do "aor" com 'AVAILABLE'
-				response = request.createResponse(200); // 200 (ok response)
-            	response.send(); // Envia a mensagem
+			if ("acme.pt".equals(domain)) { 
+				RegistrarDB.put(aor, contact); 
+				setStatus(aor, "AVAILABLE"); 
+				response = request.createResponse(200);
+            	response.send(); 
 				
-			} else { // O dominio não corresponde ao pretendido 
-				response = request.createResponse(403); // 403 (forbidden response)
-            	response.send(); // Envia a mensagem
+			} else { 
+				response = request.createResponse(401); 
+            	response.send(); 
 			}
 
-		// Some logs to show the content of the Registrar database.
 		log("----------------------------------------------REGISTER (myapp):----------------------------------------------");
 			Iterator<Map.Entry<String,String>> it = RegistrarDB.entrySet().iterator();
     			while (it.hasNext()) {
@@ -99,17 +100,17 @@ public class Myapp extends SipServlet {
 		* @param aor From the SIP message received
     	*/
 	private void doDeregistration(SipServletRequest request, String aor) throws ServletException, IOException {
-    	SipServletResponse response; // Cria a resposta
+    	SipServletResponse response; 
 
-		if (RegistrarDB.containsKey(aor)) { // Se o "aor" existir na bd 
-			RegistrarDB.remove(aor); // Remove da bd 
-			userStatusMap.remove(aor); // Remove o estado do aor removido
-			response = request.createResponse(200); // 200 (ok response)
-        	response.send(); // Envia a mensagem
+		if (RegistrarDB.containsKey(aor)) { 
+			RegistrarDB.remove(aor); 
+			userStatusMap.remove(aor);
+			response = request.createResponse(200);
+        	response.send(); 
 		
-		} else { // Se o "aor" não existir na bd
-			response = request.createResponse(403); // 403 (forbidden response)
-        	response.send(); // Envia a mensagem
+		} else {
+			response = request.createResponse(403); 
+        	response.send(); 
 		}
 
 		// Some logs to show the content of the Registrar database.
@@ -127,12 +128,17 @@ public class Myapp extends SipServlet {
         * - 300 if registred
         * - 404 if not registred
         * @param  request The SIP message received by the AS 
+		* 
         */
+
+
+
+
 	protected void doInvite(SipServletRequest request)
             throws ServletException, IOException {
 		
-		String fromAor = getSIPuri(request.getHeader("From")); // Get the From AoR
-		String toAor = getSIPuri(request.getHeader("To")); // Get the To AoR
+		String fromAor = getSIPuri(request.getHeader("From")); 
+		String toAor = getSIPuri(request.getHeader("To")); 
 		String domain = toAor.substring(toAor.indexOf("@")+1, toAor.length());
 		
 		// Some logs to show the content of the Registrar database.
@@ -144,34 +150,35 @@ public class Myapp extends SipServlet {
     			}
 		log("----------------------------------------------INVITE (myapp):----------------------------------------------");
 		
-		if (domain.equals("a.pt")) { // The To domain is the same as the server 
-			if (!RegistrarDB.containsKey(fromAor)) { // From AoR not in the database, reply 403
-				SipServletResponse response = request.createResponse(403);
+		if (domain.equals("acme.pt")) { 
+			if (!RegistrarDB.containsKey(fromAor)) { 
+				SipServletResponse response = request.createResponse(900); 
+				log("ERRO MENGA");
 				response.send();
-	    	} else if (toAor.contains("chat")) { // Se o toAor for chat o utilizador conecta-se ao servidor de conferências
+	    	} else if (toAor.contains("chat")) { 
 					Proxy proxy = request.getProxy();
-                	proxy.setRecordRoute(true); // route tem de estar true senão o request BYE não passa pelo servidor
+                	proxy.setRecordRoute(true); 
                 	proxy.setSupervised(false);
-                	URI toContact = factory.createURI("sip:conf@127.0.0.1:5070");
+                	URI toContact = factory.createURI("sip:chat@127.0.0.1:5070");
                 	proxy.proxyTo(toContact);
-			} else if (!RegistrarDB.containsKey(toAor)) { // To AoR not in the database, reply 404
+			} else if (!RegistrarDB.containsKey(toAor)) { 
 				SipServletResponse response = request.createResponse(404);
 				response.send();
 	    	} else {
-				if (!getStatus(toAor).equals("AVAILABLE")) { // Verificar se o toAor está disponível
+				if (!getStatus(toAor).equals("AVAILABLE")) { 
                 	SipServletResponse response = request.createResponse(486);
                 	response.send();
             	} else {
                 	Proxy proxy = request.getProxy();
                 	proxy.setRecordRoute(true);
-                	proxy.setSupervised(false);
+                	proxy.setSupervised(true);
                 	URI toContact = factory.createURI(RegistrarDB.get(toAor));
                 	proxy.proxyTo(toContact);
            		}
 			}		
 
 		} else {
-			SipServletResponse response = request.createResponse(403);
+			SipServletResponse response = request.createResponse(901);
         	response.send();
 		}
 
@@ -186,9 +193,9 @@ public class Myapp extends SipServlet {
     	String fromAor = getSIPuri(request.getHeader("From"));
     	String toAor = getSIPuri(request.getHeader("To"));
 
-		if (toAor.contains("chat")) { // Se o toAor for chat o estado do user passa a em conferencia
+		if (toAor.contains("chat")) { 
 			setStatus(fromAor, "IN CONFERENCE");
-		} else {  // Para os outros casos, o estado dos dois users passa a disponivel
+		} else {  
     		setStatus(fromAor, "BUSY");
 			setStatus(toAor, "BUSY");
 		}
@@ -203,10 +210,10 @@ public class Myapp extends SipServlet {
     	String fromAor = getSIPuri(request.getHeader("From"));
     	String toAor = getSIPuri(request.getHeader("To"));
 
-		if (toAor.contains("chat")) { // Se o toAor for chat o estado do user passa a disponivel
+		if (toAor.contains("chat")) { 
 			setStatus(fromAor, "AVAILABLE");
 
-		} else {  // Para os outros casos, o estado dos dois users passa a disponivel
+		} else {  
 		
     		setStatus(fromAor, "AVAILABLE");
 			setStatus(toAor, "AVAILABLE");
@@ -225,23 +232,51 @@ public class Myapp extends SipServlet {
 	//	System.out.println(aor);
 	//	System.out.println("oo");
 
-		if(toAor.equals("sip:gofind@a.pt"))
+		if(toAor.equals("sip:gofind@acme.pt"))
            {
 				  //  Proxy proxy = request.getProxy();
                 //	proxy.setRecordRoute(true);ffff
                 //	proxy.setSupervised(false);
                 //	URI toContact = factory.createURI(request.getContent().toString());
                 //	proxy.proxyTo(toContact);
+				SipFactory sipFactory = (SipFactory) getServletContext().getAttribute(SIP_FACTORY);
+
+// Create SIP URIs for caller and callee
+SipURI fromUri = sipFactory.createSipURI("caller", "acme.pt");
+SipURI toUri = sipFactory.createSipURI("callee", "acme.pt");
+
+// Create Addresses from URIs
+Address fromAddress = sipFactory.createAddress(aor);
+Address toAddress = sipFactory.createAddress(request.getContent().toString());
+
+
+
+
 				SipServletRequest inviteRequest = factory.createRequest(
 					request.getApplicationSession(),
 					"INVITE",
-					aor,
-					request.getContent().toString()
+					RegistrarDB.get(aor),
+					RegistrarDB.get(new String(request.getRawContent()))
 				
 				);
-				//inviteRequest.setRequestURI(factory.createSipURI(null,request.getContent().toString().trim()));
+			//	//inviteRequest.setRequestURI(factory.createSipURI(null,request.getContent().toString().trim()));
+			//	inviteRequest.send();
+                SipServletResponse response = request.createResponse(200);
+        	;// 403 (forbidden response)
+			//	inviteRequest.setRequestURI(factory.createURI("sip:bob@acme.pt"));
 				inviteRequest.send();
-
+				response.send();
+			//	SipServletRequest inviteRequest2 = factory.createRequest(
+			//		request.getApplicationSession(),
+			//		"INVITE",
+					
+			//		factory.createURI("sip:bob@acme.pt"),
+				//	factory.createURI(aor)
+				
+				//);
+				//inviteRequest.setRequestURI(factory.createSipURI(null,request.getContent().toString().trim()));
+				//inviteRequest2.send();
+				inviteRequest.setRequestURI(factory.createURI("sip:bob@acme.pt"));
         	  //  response.send();// 403 (forbidden response)
             	 // Envia a mensagem
 			}
